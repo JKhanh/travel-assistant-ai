@@ -190,7 +190,7 @@ jobs:
         run: flutter pub get
 
       - name: Run OSV Security Scan
-        uses: google/osv-scanner-action@v1
+        uses: google/osv-scanner-action@v1.8.5
         with:
           scan-args: |-
             --recursive
