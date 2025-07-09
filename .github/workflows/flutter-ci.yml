@@ -1,0 +1,221 @@
+# Flutter CI/CD Pipeline for Travel Assistant AI
+# This workflow runs tests, linting, and builds for every PR and push to main
+# Failures will block merges to ensure code quality
+
+name: Flutter CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  # Test and lint job - runs on all platforms
+  test:
+    name: Test & Lint
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.24.0"
+          channel: "stable"
+          cache: true
+
+      - name: Cache pub dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.pub-cache
+            ${{ runner.tool_cache }}/flutter
+          key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pub-
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Verify formatting
+        run: dart format --output=none --set-exit-if-changed .
+
+      - name: Analyze code
+        run: flutter analyze
+
+      - name: Run tests
+        run: flutter test --coverage
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          file: coverage/lcov.info
+          fail_ci_if_error: true
+
+  # Build job - matrix strategy for different platforms
+  build:
+    name: Build
+    needs: test
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: android
+            artifact-name: android-builds
+          - os: ubuntu-latest
+            target: web
+            artifact-name: web-build
+          - os: macos-latest
+            target: ios
+            artifact-name: ios-build
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.24.0"
+          channel: "stable"
+          cache: true
+
+      - name: Cache pub dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.pub-cache
+            ${{ runner.tool_cache }}/flutter
+          key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pub-
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      # Android specific steps
+      - name: Setup Java (Android)
+        if: matrix.target == 'android'
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "17"
+
+      - name: Setup Android SDK (Android)
+        if: matrix.target == 'android'
+        uses: android-actions/setup-android@v3
+
+      - name: Build Android APK
+        if: matrix.target == 'android'
+        run: flutter build apk --release
+
+      - name: Build Android App Bundle
+        if: matrix.target == 'android'
+        run: flutter build appbundle --release
+
+      - name: Upload Android artifacts
+        if: matrix.target == 'android'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact-name }}
+          path: |
+            build/app/outputs/flutter-apk/app-release.apk
+            build/app/outputs/bundle/release/app-release.aab
+          retention-days: 30
+
+      # iOS specific steps
+      - name: Setup Xcode (iOS)
+        if: matrix.target == 'ios'
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Build iOS (without code signing)
+        if: matrix.target == 'ios'
+        run: flutter build ios --release --no-codesign
+
+      - name: Create iOS IPA
+        if: matrix.target == 'ios'
+        run: |
+          mkdir -p build/ios/iphoneos/Payload
+          cp -r build/ios/iphoneos/Runner.app build/ios/iphoneos/Payload/
+          cd build/ios/iphoneos
+          zip -r Runner.ipa Payload/
+
+      - name: Upload iOS artifacts
+        if: matrix.target == 'ios'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact-name }}
+          path: build/ios/iphoneos/Runner.ipa
+          retention-days: 30
+
+      # Web specific steps
+      - name: Build Web
+        if: matrix.target == 'web'
+        run: flutter build web --release
+
+      - name: Upload Web artifacts
+        if: matrix.target == 'web'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact-name }}
+          path: build/web/
+          retention-days: 30
+
+  # Security scanning job
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.24.0"
+          channel: "stable"
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Run security audit
+        run: dart pub audit
+
+      - name: Check for outdated dependencies
+        run: flutter pub outdated --show-all
+        continue-on-error: true
+
+  # Melos workspace validation (if using monorepo)
+  melos:
+    name: Melos Workspace
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.24.0"
+          channel: "stable"
+          cache: true
+
+      - name: Install Melos
+        run: dart pub global activate melos
+
+      - name: Bootstrap workspace
+        run: melos bootstrap
+
+      - name: Run all package tests
+        run: melos run test --no-select
+        continue-on-error: true
