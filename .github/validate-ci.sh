@@ -42,9 +42,15 @@ fi
 echo "📋 Validating pubspec.yaml..."
 flutter pub deps
 
-# Check for security issues (using dart pub audit instead)
-echo "🔒 Running security audit..."
-dart pub audit || echo "⚠️  Security audit not available in this Flutter version"
+# Check for security issues using OSV Scanner
+echo "🔒 Running OSV Security Scan..."
+if command -v osv-scanner &> /dev/null; then
+    osv-scanner --recursive --skip-git ./
+else
+    echo "⚠️  OSV Scanner not installed. Install with: go install github.com/google/osv-scanner/cmd/osv-scanner@v1"
+    echo "   Or download from: https://github.com/google/osv-scanner/releases"
+    echo "   This scan will run in CI even without local installation"
+fi
 
 # Check for outdated dependencies
 echo "📊 Checking for outdated dependencies..."
