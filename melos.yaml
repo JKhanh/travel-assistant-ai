@@ -1,5 +1,5 @@
 name: travel_assistant_ai
-repository: https://github.com/your-org/travel_assistant_ai
+repository: https://github.com/JKhanh/travel-assistant-ai
 
 packages:
   - .

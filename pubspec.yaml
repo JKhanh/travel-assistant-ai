@@ -1,5 +1,7 @@
 name: travel_assistant_ai
-description: "A new Flutter project."
+description: "An AI-enabled travel assistant application that helps users plan and manage their trips through intelligent checklists, cultural briefings, and payment guidance."
+homepage: https://github.com/JKhanh/travel-assistant-ai
+repository: https://github.com/JKhanh/travel-assistant-ai
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: "none" # Remove this line if you wish to publish to pub.dev
