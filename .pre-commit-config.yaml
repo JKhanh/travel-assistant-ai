@@ -1,0 +1,43 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
+      - id: check-merge-conflict
+      - id: mixed-line-ending
+      - id: check-case-conflict
+
+  - repo: https://github.com/pre-commit/mirrors-prettier
+    rev: v3.0.3
+    hooks:
+      - id: prettier
+        files: \.(json|yaml|yml|md)$
+
+  - repo: local
+    hooks:
+      - id: flutter-format
+        name: Flutter Format
+        entry: dart format --set-exit-if-changed .
+        language: system
+        files: \.dart$
+        pass_filenames: false
+        always_run: true
+
+      - id: flutter-analyze
+        name: Flutter Analyze
+        entry: flutter analyze --fatal-infos
+        language: system
+        files: \.dart$
+        pass_filenames: false
+        always_run: true
+
+      - id: flutter-test
+        name: Flutter Test
+        entry: flutter test --no-pub
+        language: system
+        files: \.dart$
+        pass_filenames: false
+        always_run: true
