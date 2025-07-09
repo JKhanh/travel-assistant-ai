@@ -170,11 +170,22 @@ jobs:
           path: build/web/
           retention-days: 30
 
-  # Security scanning job
+  # Security scanning job using OSV Scanner reusable workflow
   security:
     name: Security Scan
-    runs-on: ubuntu-latest
+    uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@v2.0.3
+    with:
+      scan-args: |-
+        --recursive
+        --skip-git
+        ./
+      upload-sarif: true
+      fail-on-vuln: true
 
+  # Additional security checks
+  security-extra:
+    name: Security Extra Checks
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -188,14 +199,6 @@ jobs:
 
       - name: Install dependencies
         run: flutter pub get
-
-      - name: Run OSV Security Scan
-        uses: google/osv-scanner-action@v1.8.5
-        with:
-          scan-args: |-
-            --recursive
-            --skip-git
-            ./
 
       - name: Check for outdated dependencies
         run: flutter pub outdated --show-all
