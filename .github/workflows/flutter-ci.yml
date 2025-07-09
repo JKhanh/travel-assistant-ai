@@ -10,6 +10,11 @@ on:
   pull_request:
     branches: [main, develop]
 
+permissions:
+  contents: read
+  actions: read
+  security-events: write
+
 jobs:
   # Test and lint job - runs on all platforms
   test:
@@ -173,14 +178,10 @@ jobs:
   # Security scanning job using OSV Scanner reusable workflow
   security:
     name: Security Scan
-    uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@v2.0.3
+    uses: "google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@v2.0.3"
     with:
-      scan-args: |-
-        --recursive
-        --skip-git
-        ./
-      upload-sarif: true
-      fail-on-vuln: true
+      scan-args: |
+        --lockfile=pubspec.lock
 
   # Additional security checks
   security-extra:
