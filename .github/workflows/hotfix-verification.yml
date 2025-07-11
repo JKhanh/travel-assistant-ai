@@ -1,0 +1,147 @@
+name: Hotfix Verification
+
+on:
+  pull_request:
+    branches: [main, staging, canary]
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+
+jobs:
+  verify-hotfix:
+    name: Verify Hotfix Process
+    runs-on: ubuntu-latest
+    if: startsWith(github.head_ref, 'hotfix/')
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Fetch all history for branch checking
+
+      - name: Verify hotfix follows proper flow
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const prBranch = context.payload.pull_request.head.ref;
+            const targetBranch = context.payload.pull_request.base.ref;
+            const prNumber = context.payload.pull_request.number;
+
+            console.log(`Verifying hotfix: ${prBranch} → ${targetBranch}`);
+
+            // Check if PR has QA approval label
+            const labels = context.payload.pull_request.labels.map(l => l.name);
+            const hasQAApproval = labels.includes('qa-approved');
+
+            // Get commit messages to check if hotfix exists in develop
+            const { data: developCommits } = await github.rest.repos.listCommits({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha: 'develop',
+              per_page: 100
+            });
+
+            // Check if hotfix branch has been merged to develop
+            const hotfixTicket = prBranch.replace('hotfix/', '');
+            const hotfixInDevelop = developCommits.some(commit =>
+              commit.commit.message.includes(hotfixTicket) ||
+              commit.commit.message.includes(prBranch)
+            );
+
+            // Rules for different target branches
+            let checksPass = true;
+            let failureMessage = '';
+
+            switch(targetBranch) {
+              case 'main':
+                if (!hasQAApproval) {
+                  checksPass = false;
+                  failureMessage = '❌ Hotfix to main requires "qa-approved" label';
+                }
+                if (!hotfixInDevelop) {
+                  checksPass = false;
+                  failureMessage += '\n❌ Hotfix must be merged to develop and tested first';
+                }
+                break;
+
+              case 'staging':
+              case 'canary':
+                if (!hotfixInDevelop) {
+                  checksPass = false;
+                  failureMessage = `❌ Hotfix must be merged to develop first before ${targetBranch}`;
+                }
+                break;
+
+              default:
+                // No special checks for other branches
+                break;
+            }
+
+            // Post comment on PR with status
+            if (!checksPass) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                body: `## 🚨 Hotfix Verification Failed\n\n${failureMessage}\n\n### Required Hotfix Flow:\n1. Create hotfix from \`main\`\n2. Merge to \`develop\` for QA testing\n3. Get QA approval (add \`qa-approved\` label)\n4. Merge to \`canary\` → \`staging\` → \`main\``
+              });
+
+              core.setFailed(failureMessage);
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                body: `## ✅ Hotfix Verification Passed\n\nThis hotfix has followed the proper flow and is ready to merge to ${targetBranch}.`
+              });
+            }
+
+  # Additional job to check commit message format
+  check-commit-format:
+    name: Verify Commit Message Format
+    runs-on: ubuntu-latest
+    if: startsWith(github.head_ref, 'hotfix/')
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check commit messages start with ticket number
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const commits = context.payload.pull_request.commits;
+            const prNumber = context.payload.pull_request.number;
+
+            // Get all commits in PR
+            const { data: prCommits } = await github.rest.pulls.listCommits({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: prNumber
+            });
+
+            let invalidCommits = [];
+            const ticketPattern = /^[A-Z]+-\d+:/;
+
+            for (const commit of prCommits) {
+              if (!ticketPattern.test(commit.commit.message)) {
+                invalidCommits.push({
+                  sha: commit.sha.substring(0, 7),
+                  message: commit.commit.message.split('\n')[0]
+                });
+              }
+            }
+
+            if (invalidCommits.length > 0) {
+              const errorMessage = invalidCommits.map(c =>
+                `- \`${c.sha}\`: ${c.message}`
+              ).join('\n');
+
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                body: `## ❌ Invalid Commit Message Format\n\nThe following commits don't start with a ticket number:\n\n${errorMessage}\n\n**Required format:** \`TICKET-123: Description\``
+              });
+
+              core.setFailed('Some commits do not follow the required format');
+            }
