@@ -46,3 +46,19 @@ app.*.map.json
 
 # Claude Code local configuration
 .claude/
+
+# Android signing
+android/keystore.properties
+android/app/keystore.jks
+android/app/*.keystore
+android/fastlane/play-store-service-account.json
+
+# iOS signing
+ios/fastlane/AuthKey_*.p8
+ios/fastlane/certificates
+ios/fastlane/match_*
+
+# Ruby/Bundler
+vendor/bundle
+.bundle/
+Gemfile.lock

@@ -1,0 +1,8 @@
+# Google Play Store package name
+package_name("com.example.travel_assistant_ai")
+
+# Google Play Service Account JSON key path
+json_key_file("play-store-service-account.json")
+
+# For more information about the Appfile, see:
+# https://docs.fastlane.tools/advanced/#appfile
