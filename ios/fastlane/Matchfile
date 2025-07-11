@@ -1,0 +1,17 @@
+# Git repository for storing certificates and provisioning profiles
+git_url("https://github.com/your-username/certificates")
+
+# Storage mode (git is recommended)
+storage_mode("git")
+
+# App identifier
+app_identifier("com.example.travelAssistantAi")
+
+# Team ID
+team_id("TEAM_ID")
+
+# Username for your Apple Developer Account
+username("your-apple-id@example.com")
+
+# For more information about the Matchfile, see:
+# https://docs.fastlane.tools/actions/match/
