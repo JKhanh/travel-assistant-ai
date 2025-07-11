@@ -1,3 +1,4 @@
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
@@ -32,29 +33,21 @@ android {
 
     signingConfigs {
         create("release") {
-            // Load keystore properties from environment variables
-            val keystorePropertiesFile = rootProject.file("keystore.properties")
-            val keystoreExists = keystorePropertiesFile.exists()
-
-            if (keystoreExists) {
-                val keystoreProperties = java.util.Properties()
-                keystoreProperties.load(keystorePropertiesFile.inputStream())
-
-                keyAlias = keystoreProperties.getProperty("keyAlias")
-                keyPassword = keystoreProperties.getProperty("keyPassword")
-                storeFile = file(keystoreProperties.getProperty("storeFile"))
-                storePassword = keystoreProperties.getProperty("storePassword")
-            } else {
-                // Use environment variables for CI/CD
-                keyAlias = System.getenv("ANDROID_KEY_ALIAS")
-                keyPassword = System.getenv("ANDROID_KEY_PASSWORD")
-                storeFile = file(System.getenv("ANDROID_KEYSTORE_PATH") ?: "keystore.jks")
-                storePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD")
-            }
+            // Use environment variables for CI/CD
+            keyAlias = System.getenv("ANDROID_KEY_ALIAS")
+            keyPassword = System.getenv("ANDROID_KEY_PASSWORD")
+            storeFile = file(System.getenv("ANDROID_KEYSTORE_PATH") ?: "keystore.jks")
+            storePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD")
         }
     }
 
     buildTypes {
+        debug {
+            signingConfig = signingConfigs.getByName("debug")
+            isMinifyEnabled = false
+            isDebuggable = true
+        }
+
         release {
             signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = true
