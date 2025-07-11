@@ -1,0 +1,38 @@
+# CODEOWNERS file for Travel Assistant AI
+# These owners will be requested for review when someone opens a pull request
+
+# Global owners - will be requested for review on all changes
+* @teamlead @senior-dev
+
+# Hotfix branches require QA team approval
+hotfix/* @qa-team @teamlead @senior-dev
+
+# GitHub Actions and CI/CD configuration
+.github/ @devops-team @teamlead
+.github/workflows/ @devops-team @teamlead
+
+# Core application code
+/lib/core/ @senior-dev @teamlead
+/lib/domain/ @senior-dev @architect
+/lib/data/ @backend-team @senior-dev
+
+# UI/Presentation layer
+/lib/presentation/ @frontend-team @ui-lead
+
+# Tests require test team review
+/test/ @qa-team @senior-dev
+/integration_test/ @qa-team @senior-dev
+
+# Configuration files
+pubspec.yaml @teamlead @senior-dev
+*.json @teamlead
+*.yaml @teamlead
+*.yml @teamlead
+
+# Documentation
+*.md @technical-writer @teamlead
+/docs/ @technical-writer @teamlead
+
+# Security-sensitive files
+/lib/core/security/ @security-team @teamlead
+/lib/data/auth/ @security-team @senior-dev
