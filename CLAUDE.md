@@ -249,3 +249,7 @@ flutter_nfc_kit: ^3.0.0 # NFC scanning (optional)
 4. Consider localization early (multiple currencies, languages)
 5. Plan for iterative AI model improvements
 6. Implement analytics to validate feature usage
+
+## Development Conventions
+
+- Commit message must start with Jira ticket number
