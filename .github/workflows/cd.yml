@@ -1,0 +1,184 @@
+# Continuous Deployment Pipeline for Travel Assistant AI
+# Deploys to TestFlight and Google Play Internal Track on version tags
+# Triggered by: git tag push (v1.0.0, v1.0.1, etc.)
+
+name: CD Pipeline
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: read
+  actions: read
+  id-token: write # Required for OIDC
+
+jobs:
+  # Deploy to TestFlight
+  deploy-ios:
+    name: Deploy iOS to TestFlight
+    runs-on: macos-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.32.5"
+          channel: "stable"
+          cache: true
+
+      - name: Cache pub dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.pub-cache
+            ${{ runner.tool_cache }}/flutter
+          key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pub-
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.2"
+          bundler-cache: true
+
+      - name: Cache Fastlane bundle
+        uses: actions/cache@v4
+        with:
+          path: vendor/bundle
+          key: ${{ runner.os }}-gems-${{ hashFiles('**/Gemfile.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-gems-
+
+      - name: Install Fastlane
+        run: bundle install --path vendor/bundle
+
+      - name: Setup App Store Connect API Key
+        run: |
+          mkdir -p ~/private_keys
+          echo '${{ secrets.APP_STORE_CONNECT_API_KEY }}' > ~/private_keys/AuthKey_${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}.p8
+
+      - name: Setup Match SSH Key
+        run: |
+          mkdir -p ~/.ssh
+          echo '${{ secrets.MATCH_SSH_PRIVATE_KEY }}' > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan github.com >> ~/.ssh/known_hosts
+
+      - name: Setup Match passphrase
+        run: echo "MATCH_PASSWORD=${{ secrets.MATCH_PASSWORD }}" >> $GITHUB_ENV
+
+      - name: Deploy to TestFlight
+        run: |
+          cd ios
+          bundle exec fastlane beta
+        env:
+          APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          APP_STORE_CONNECT_API_KEY_PATH: ~/private_keys/AuthKey_${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}.p8
+          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+
+  # Deploy to Google Play Internal Track
+  deploy-android:
+    name: Deploy Android to Play Internal
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.32.5"
+          channel: "stable"
+          cache: true
+
+      - name: Cache pub dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.pub-cache
+            ${{ runner.tool_cache }}/flutter
+          key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pub-
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "17"
+
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.2"
+          bundler-cache: true
+
+      - name: Cache Fastlane bundle
+        uses: actions/cache@v4
+        with:
+          path: vendor/bundle
+          key: ${{ runner.os }}-gems-${{ hashFiles('**/Gemfile.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-gems-
+
+      - name: Install Fastlane
+        run: bundle install --path vendor/bundle
+
+      - name: Setup Android keystore
+        run: |
+          mkdir -p android/app
+          echo '${{ secrets.ANDROID_KEYSTORE_BASE64 }}' | base64 -d > android/app/keystore.jks
+
+      - name: Setup Google Play Service Account
+        run: |
+          mkdir -p android/fastlane
+          echo '${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}' > android/fastlane/play-store-service-account.json
+
+      - name: Deploy to Play Internal
+        run: |
+          cd android
+          bundle exec fastlane internal
+        env:
+          ANDROID_KEYSTORE_PATH: ${{ github.workspace }}/android/app/keystore.jks
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+
+  # Notify completion
+  notify:
+    name: Notify Deployment Status
+    runs-on: ubuntu-latest
+    needs: [deploy-ios, deploy-android]
+    if: always()
+
+    steps:
+      - name: Notify Success
+        if: needs.deploy-ios.result == 'success' && needs.deploy-android.result == 'success'
+        run: |
+          echo "✅ Deployment successful!"
+          echo "iOS: Deployed to TestFlight"
+          echo "Android: Deployed to Play Internal Track"
+
+      - name: Notify Failure
+        if: needs.deploy-ios.result == 'failure' || needs.deploy-android.result == 'failure'
+        run: |
+          echo "❌ Deployment failed!"
+          echo "iOS Status: ${{ needs.deploy-ios.result }}"
+          echo "Android Status: ${{ needs.deploy-android.result }}"
+          exit 1

@@ -1,0 +1,14 @@
+# The bundle identifier of your app
+app_identifier("com.example.travelAssistantAi")
+
+# Your Apple ID username
+apple_id("your-apple-id@example.com")
+
+# Your Team ID
+team_id("TEAM_ID")
+
+# Your iTunes Connect Team ID
+itc_team_id("ITC_TEAM_ID")
+
+# For more information about the Appfile, see:
+# https://docs.fastlane.tools/advanced/#appfile
