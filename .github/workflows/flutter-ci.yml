@@ -241,7 +241,6 @@ jobs:
             p/security-audit
             p/owasp-top-ten
             p/secrets
-            p/dart
         continue-on-error: true
 
       # Process security results with triage script

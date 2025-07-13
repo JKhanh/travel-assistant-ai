@@ -64,13 +64,13 @@ tags = ["google", "oauth", "client"]
 [allowlist]
 description = "Allowlist for test files and documentation"
 paths = [
-    "test/**",
-    "**/*_test.dart",
-    "**/test_data/**",
-    "**/*.md",
-    "docs/**",
-    "example/**",
-    "**/*.example.*"
+    "test/",
+    "*_test.dart",
+    "test_data/",
+    "*.md",
+    "docs/",
+    "example/",
+    "*.example.*"
 ]
 
 # Allow certain test patterns
