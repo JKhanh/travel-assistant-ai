@@ -37,7 +37,25 @@ class SecurityTriage {
 
     try {
       final content = await file.readAsString();
-      final results = jsonDecode(content) as List<dynamic>;
+      final data = jsonDecode(content);
+
+      // Check if this is an error report
+      if (data is Map && data['status'] == 'error') {
+        return {
+          'status': 'error',
+          'summary': {
+            'total': 0,
+            'critical': 0,
+            'high': 0,
+            'medium': 0,
+            'low': 0,
+          },
+          'findings': {'critical': [], 'high': [], 'medium': [], 'low': []},
+        };
+      }
+
+      // Otherwise, process as normal results array
+      final results = (data is List) ? data : [];
 
       final Map<String, List<dynamic>> categorized = {
         'critical': [],
@@ -104,6 +122,22 @@ class SecurityTriage {
     try {
       final content = await file.readAsString();
       final data = jsonDecode(content) as Map<String, dynamic>;
+
+      // Check if this is an error report
+      if (data['status'] == 'error') {
+        return {
+          'status': 'error',
+          'summary': {
+            'total': 0,
+            'critical': 0,
+            'high': 0,
+            'medium': 0,
+            'low': 0,
+          },
+          'findings': {'critical': [], 'high': [], 'medium': [], 'low': []},
+        };
+      }
+
       final results = data['results'] as List<dynamic>? ?? [];
 
       final Map<String, List<dynamic>> categorized = {
@@ -240,6 +274,10 @@ class SecurityTriage {
     final semgrepFindings =
         semgrepAnalysis['findings'] as Map<String, List<dynamic>>;
 
+    // Check if tools ran successfully
+    final gitLeaksStatus = gitLeaksAnalysis['status'] as String?;
+    final semgrepStatus = semgrepAnalysis['status'] as String?;
+
     final totalCritical =
         (gitLeaksSummary['critical'] as int) +
         (semgrepSummary['critical'] as int);
@@ -254,6 +292,25 @@ class SecurityTriage {
     final buffer = StringBuffer();
     buffer.writeln('## 🔒 Security Scan Results (KAN-17)');
     buffer.writeln();
+
+    // Add status warnings if tools failed
+    if (gitLeaksStatus == 'error' || semgrepStatus == 'error') {
+      buffer.writeln(
+        '> ⚠️ **Warning**: Some security tools encountered issues during scanning',
+      );
+      buffer.writeln();
+      if (gitLeaksStatus == 'error') {
+        buffer.writeln(
+          '> 🔴 **GitLeaks**: Failed to run properly. Check CI logs for details.',
+        );
+      }
+      if (semgrepStatus == 'error') {
+        buffer.writeln(
+          '> 🔴 **Semgrep**: Failed to run properly. Check CI logs for details.',
+        );
+      }
+      buffer.writeln();
+    }
 
     // Summary table
     buffer.writeln('| Tool | Critical | High | Medium | Low | Total |');

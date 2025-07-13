@@ -220,8 +220,11 @@ jobs:
       - name: Get GitLeaks Results
         if: always()
         run: |
-          # GitLeaks action outputs to SARIF format, we'll use that
-          if [ -f "gitleaks-results.sarif" ]; then
+          # Check if GitLeaks ran successfully
+          if [ "${{ steps.gitleaks.outcome }}" == "failure" ]; then
+            echo '{"status": "error", "results": []}' > gitleaks-report.json
+            echo "⚠️ GitLeaks encountered an error"
+          elif [ -f "gitleaks-results.sarif" ]; then
             echo "GitLeaks SARIF file found"
             # Convert SARIF to our expected format (simplified)
             echo '[]' > gitleaks-report.json
@@ -231,6 +234,7 @@ jobs:
 
       # Semgrep - OWASP security rules
       - name: Run Semgrep Security Analysis
+        id: semgrep
         uses: semgrep/semgrep-action@v1
         with:
           config: >-
@@ -238,8 +242,6 @@ jobs:
             p/owasp-top-ten
             p/secrets
             p/dart
-          publishToken: ${{ secrets.GITHUB_TOKEN }}
-          publishDeployment: false
         continue-on-error: true
 
       # Process security results with triage script
@@ -247,7 +249,14 @@ jobs:
         run: |
           # Create default reports if they don't exist
           [ -f "gitleaks-report.json" ] || echo '[]' > gitleaks-report.json
-          [ -f "semgrep-report.json" ] || echo '{"results": []}' > semgrep-report.json
+
+          # Check Semgrep status and create appropriate report
+          if [ "${{ steps.semgrep.outcome }}" == "failure" ]; then
+            echo '{"status": "error", "results": []}' > semgrep-report.json
+            echo "⚠️ Semgrep encountered an error"
+          else
+            [ -f "semgrep-report.json" ] || echo '{"results": []}' > semgrep-report.json
+          fi
 
           dart scripts/security_triage.dart gitleaks-report.json semgrep-report.json
         continue-on-error: true
