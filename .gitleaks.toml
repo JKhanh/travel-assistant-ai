@@ -1,0 +1,83 @@
+# GitLeaks configuration for Flutter/Dart Travel Assistant AI
+# This configuration detects hardcoded secrets, API keys, and sensitive data
+
+[extend]
+useDefault = true
+
+# Flutter/Dart specific rules
+[[rules]]
+id = "flutter-api-key"
+description = "Flutter API key detected"
+regex = '''(?i)(flutter[_-]?api[_-]?key|FLUTTER[_-]?API[_-]?KEY)\s*[:=]\s*['"][0-9a-zA-Z\-_]{20,}['"]'''
+tags = ["flutter", "api", "key"]
+
+[[rules]]
+id = "firebase-config"
+description = "Firebase configuration detected"
+regex = '''(?i)(firebase[_-]?api[_-]?key|googleapi[_-]?key|google[_-]?services)\s*[:=]\s*['"][0-9a-zA-Z\-_]{30,}['"]'''
+tags = ["firebase", "google", "api"]
+
+[[rules]]
+id = "dart-env-secrets"
+description = "Dart environment secrets"
+regex = '''(?i)(secret|password|token|private[_-]?key)\s*[:=]\s*['"][^'"]{8,}['"]'''
+tags = ["dart", "environment", "secret"]
+
+[[rules]]
+id = "openweather-api"
+description = "OpenWeather API key detected"
+regex = '''(?i)(openweather[_-]?api[_-]?key|weather[_-]?api[_-]?key)\s*[:=]\s*['"][0-9a-f]{32}['"]'''
+tags = ["openweather", "api", "weather"]
+
+[[rules]]
+id = "travel-api-keys"
+description = "Travel API keys detected"
+regex = '''(?i)(amadeus|booking|expedia|airbnb)[_-]?(api[_-]?key|token|secret)\s*[:=]\s*['"][0-9a-zA-Z\-_]{20,}['"]'''
+tags = ["travel", "api", "booking"]
+
+[[rules]]
+id = "jwt-secrets"
+description = "JWT secret keys detected"
+regex = '''(?i)(jwt[_-]?secret|jwt[_-]?key|access[_-]?token[_-]?secret)\s*[:=]\s*['"][0-9a-zA-Z\-_]{20,}['"]'''
+tags = ["jwt", "auth", "secret"]
+
+[[rules]]
+id = "database-urls"
+description = "Database connection strings"
+regex = '''(?i)(database[_-]?url|db[_-]?url|connection[_-]?string)\s*[:=]\s*['"][^'"]*://[^'"]+['"]'''
+tags = ["database", "connection"]
+
+# Android specific patterns
+[[rules]]
+id = "android-keystore"
+description = "Android keystore passwords"
+regex = '''(?i)(keystore[_-]?password|key[_-]?password|store[_-]?password)\s*[:=]\s*['"][^'"]{6,}['"]'''
+tags = ["android", "keystore", "password"]
+
+[[rules]]
+id = "google-services-json"
+description = "Google services configuration"
+regex = '''(?i)"client_secret"\s*:\s*"[0-9a-zA-Z\-_]{20,}"'''
+tags = ["google", "oauth", "client"]
+
+# Allowlist for false positives
+[allowlist]
+description = "Allowlist for test files and documentation"
+paths = [
+    "test/**",
+    "**/*_test.dart",
+    "**/test_data/**",
+    "**/*.md",
+    "docs/**",
+    "example/**",
+    "**/*.example.*"
+]
+
+# Allow certain test patterns
+regexes = [
+    "test_api_key",
+    "dummy_secret",
+    "example_token",
+    "placeholder_key",
+    "fake_password"
+]
